@@ -21,6 +21,7 @@ namespace MovieCatalog.Forms
 
             cmbFilterGenre.SelectedIndexChanged += FilterChanged;
             cmbFilterStatus.SelectedIndexChanged += FilterChanged;
+            cmbSort.SelectedIndexChanged += FilterChanged;
             txtSearch.TextChanged += FilterChanged;
         }
 
@@ -32,19 +33,22 @@ namespace MovieCatalog.Forms
             string search = txtSearch.Text.ToLower();
             string genreFilter = cmbFilterGenre.SelectedItem?.ToString() ?? "Все";
             string statusFilter = cmbFilterStatus.SelectedItem?.ToString() ?? "Все";
+            string sortBy = cmbSort.SelectedItem?.ToString() ?? "Без сортировки";
 
             var filteredMovies = movies.Where(m =>
-                // Поиск по названию или описанию
                 (m.Title.ToLower().Contains(search) || m.Description.ToLower().Contains(search)) &&
-
-                // Проверка жанра (если выбрано "Все" — не фильтруем)
-                (genreFilter == "Все" ||
-                 (!string.IsNullOrEmpty(m.Genre) && m.Genre.ToLower().Contains(genreFilter.ToLower()))) &&
-
-                // Проверка статуса
-                (statusFilter == "Все" ||
-                 (!string.IsNullOrEmpty(m.Status) && m.Status.ToLower().Contains(statusFilter.ToLower())))
+                (genreFilter == "Все" || (!string.IsNullOrEmpty(m.Genre) && m.Genre.ToLower().Contains(genreFilter.ToLower()))) &&
+                (statusFilter == "Все" || (!string.IsNullOrEmpty(m.Status) && m.Status.ToLower().Contains(statusFilter.ToLower())))
             ).ToList();
+
+            // Сортировка
+            filteredMovies = sortBy switch
+            {
+                "Название" => filteredMovies.OrderBy(m => m.Title).ToList(),
+                "Рейтинг" => filteredMovies.OrderByDescending(m => m.Rating).ToList(),
+                "Год" => filteredMovies.OrderByDescending(m => m.Year).ToList(),
+                _ => filteredMovies
+            };
 
             foreach (var movie in filteredMovies)
             {
@@ -52,7 +56,6 @@ namespace MovieCatalog.Forms
                 flowMovies.Controls.Add(card);
             }
         }
-
 
         private void FilterChanged(object sender, EventArgs e)
         {
@@ -62,15 +65,10 @@ namespace MovieCatalog.Forms
         private Panel CreateMovieCard(Movie movie)
         {
             Panel panel = new Panel();
-            panel.Size = new Size(220, 440); // увеличенная высота
+            panel.Size = new Size(220, 440);
             panel.Margin = new Padding(10);
             panel.BorderStyle = BorderStyle.FixedSingle;
-
-            // Цвет карточки для просмотренных
-            if (!string.IsNullOrEmpty(movie.Status) && movie.Status.ToLower() == "просмотрено")
-                panel.BackColor = Color.FromArgb(255, 180, 50, 50); // насыщенный красный
-            else
-                panel.BackColor = Color.FromArgb(60, 60, 60); // обычный фон
+            panel.BackColor = Color.FromArgb(60, 60, 60); // единый фон для всех карточек
 
             int padding = 10;
             int contentWidth = panel.Width - padding * 2;
@@ -111,7 +109,7 @@ namespace MovieCatalog.Forms
 
             // --- Рейтинг + Статус ---
             Label lblRatingStatus = new Label();
-            lblRatingStatus.Text = $"Рейтинг: {movie.Rating} | {movie.Status}";
+            lblRatingStatus.Text = $"Рейтинг: {movie.Rating}";
             lblRatingStatus.ForeColor = Color.WhiteSmoke;
             lblRatingStatus.Font = new Font("Arial", 9);
             lblRatingStatus.Location = new Point(padding, currentY);
@@ -126,7 +124,7 @@ namespace MovieCatalog.Forms
             txtDesc.Size = new Size(contentWidth, 60);
             txtDesc.Multiline = true;
             txtDesc.ReadOnly = true;
-            txtDesc.BackColor = panel.BackColor;
+            txtDesc.BackColor = Color.FromArgb(45, 45, 48); 
             txtDesc.ForeColor = Color.White;
             txtDesc.BorderStyle = BorderStyle.None;
             txtDesc.ScrollBars = ScrollBars.Vertical;
@@ -156,7 +154,23 @@ namespace MovieCatalog.Forms
                 currentY = lblProgress.Bottom + 5;
             }
 
-            // --- Кнопки внизу ---
+            // --- Галочка просмотрено ---
+            if (!string.IsNullOrEmpty(movie.Status) && movie.Status.ToLower() == "просмотрено")
+            {
+                Label checkMark = new Label();
+                checkMark.Text = "✔"; // галочка
+                checkMark.Font = new Font("Arial", 16, FontStyle.Bold);
+                checkMark.ForeColor = Color.LimeGreen;
+                checkMark.BackColor = Color.Transparent;
+                checkMark.Size = new Size(25, 25); // фиксированный размер
+                checkMark.TextAlign = ContentAlignment.MiddleCenter;
+                checkMark.Location = new Point(panel.Width - checkMark.Width - 5, 5); // верхний правый угол
+                panel.Controls.Add(checkMark);
+                checkMark.BringToFront(); 
+            }
+
+
+            // --- Кнопки ---
             int buttonHeight = 30;
             int buttonSpacing = 5;
             int buttonWidth = (contentWidth - buttonSpacing) / 2;
@@ -198,10 +212,6 @@ namespace MovieCatalog.Forms
 
             return panel;
         }
-
-
-
-
 
 
         private void btnAdd_Click(object sender, EventArgs e)
